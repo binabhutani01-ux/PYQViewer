@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PYQViewer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;background:#05070f;color:#f8fafc;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.panel{width:min(480px,100%);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:1.8rem;background:rgba(15,18,32,.7);backdrop-filter:blur(20px)}
+h1{font-size:1.2rem;margin-bottom:1rem}
+.field{margin-bottom:.9rem}
+label{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:#78829b;margin-bottom:.4rem}
+input{width:100%;padding:.75rem .9rem;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.5);color:#fff;outline:none}
+button{width:100%;padding:.8rem;border-radius:10px;border:0;background:#8b5cf6;color:#fff;font-weight:700;cursor:pointer;margin-top:.4rem}
+button.danger{background:rgba(251,113,133,.85)}
+button.secondary{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2)}
+.error{color:#ffadb8;font-size:.82rem;margin-top:.6rem;display:none}
+.row{display:flex;gap:.6rem}
+.row>*{flex:1}
+table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:.6rem}
+td,th{padding:.4rem;border-bottom:1px solid rgba(255,255,255,.1);text-align:left}
+.section{margin-top:1.6rem;padding-top:1.2rem;border-top:1px solid rgba(255,255,255,.12)}
+.pill{display:inline-block;padding:.2rem .5rem;border-radius:6px;font-size:.68rem;font-weight:700}
+.on{background:rgba(251,191,36,.2);color:#ffd889}
+.off{background:rgba(52,211,153,.15);color:#a7f3d0}
+</style>
+</head>
+<body>
+<div class="panel" id="app">
+  <h1>Owner Console</h1>
+  <div id="login-view">
+    <div class="field"><label>Username</label><input id="u" autocomplete="off"></div>
+    <div class="field"><label>Password</label><input id="p" type="password"></div>
+    <button onclick="login()">Sign in</button>
+    <div class="error" id="err"></div>
+  </div>
+  <div id="main-view" style="display:none">
+    <div>Maintenance mode: <span class="pill" id="maint-pill">—</span></div>
+    <div class="row" style="margin-top:.6rem">
+      <button class="secondary" onclick="toggleMaint(true)">Turn ON (takes site offline)</button>
+      <button class="secondary" onclick="toggleMaint(false)">Turn OFF</button>
+    </div>
+    <button class="danger" onclick="purge()">Purge all worksheets</button>
+    <button class="secondary" onclick="logout()">Sign out</button>
+
+    <div class="section">
+      <div>Teachers (<span id="t-count">0</span>)</div>
+      <table id="t-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="section">
+      <div>Recent logins</div>
+      <table id="e-table"><thead><tr><th>Teacher</th><th>Location</th><th>Device</th><th>When</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+<script>
+async function api(body){ const r = await fetch('/api/owner', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
+async function login(){
+  const username=document.getElementById('u').value, password=document.getElementById('p').value;
+  const r = await api({action:'login', username, password});
+  if(r.success){ document.getElementById('login-view').style.display='none'; document.getElementById('main-view').style.display='block'; loadOverview(); }
+  else { document.getElementById('err').textContent = r.error; document.getElementById('err').style.display='block'; }
+}
+function logout(){ api({action:'logout'}).then(()=>location.reload()); }
+async function toggleMaint(on){ const r = await api({action:'toggle_maintenance', on}); paintMaint(r.maintenance); }
+function paintMaint(on){ const el=document.getElementById('maint-pill'); el.textContent = on ? 'ON — site offline' : 'OFF'; el.className='pill '+(on?'on':'off'); }
+async function purge(){ if(!confirm('Purge ALL worksheets? This cannot be undone.')) return; const r = await api({action:'purge_everything'}); alert(r.success?'Purged.':r.error); loadOverview(); }
+async function loadOverview(){
+  const s = await api({action:'status'}); paintMaint(s.maintenance);
+  const r = await api({action:'overview'});
+  if(!r.success) return;
+  document.getElementById('t-count').textContent = r.teachers.length;
+  document.querySelector('#t-table tbody').innerHTML = r.teachers.map(t=>`<tr><td>${t.name}</td><td>${t.email}</td><td>${t.role}</td><td>${t.status}</td></tr>`).join('');
+  document.querySelector('#e-table tbody').innerHTML = r.events.slice(0,30).map(e=>`<tr><td>${e.teacher_name||''}</td><td>${(e.city||'')+(e.country?', '+e.country:'')}</td><td>${e.device||''}</td><td>${new Date(e.created_at).toLocaleString()}</td></tr>`).join('');
+}
+document.getElementById('p').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+</script>
+</body>
+</html>
