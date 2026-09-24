@@ -1,0 +1,12 @@
+{
+  "name": "pyqviewer",
+  "version": "2.1.0",
+  "description": "PYQViewer — past year papers & worksheets (Vercel). Main liquid-glass UI + upgraded Owner/Dev Console.",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "bcryptjs": "^2.4.3",
+    "google-auth-library": "^9.11.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
